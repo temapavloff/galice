@@ -3,6 +3,8 @@ package galice
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 )
 
 // Meta - Alise request metadata
@@ -28,28 +30,28 @@ type RequestType uint8
 // MarshalJSON converts inner representation to values supported by Alise API
 func (r RequestType) MarshalJSON() ([]byte, error) {
 	if r == RequestTypeSimpleUtterance {
-		return []byte("SimpleUtterance"), nil
+		return []byte("\"SimpleUtterance\""), nil
 	}
 	if r == RequestTypeButtonPressed {
-		return []byte("ButtonPressed"), nil
+		return []byte("\"ButtonPressed\""), nil
 	}
 
 	return []byte{}, fmt.Errorf("Unsupported RequestType value: %v", r)
 }
 
 // UnmarshalJSON converts Alice API type of request into internal RequestType value
-func (r RequestType) UnmarshalJSON(input []byte) error {
+func (r *RequestType) UnmarshalJSON(input []byte) error {
 	str := string(input)
-	if str == "SimpleUtterance" {
-		r = RequestTypeSimpleUtterance
+	if str == "\"SimpleUtterance\"" {
+		*r = RequestTypeSimpleUtterance
 		return nil
 	}
-	if str == "ButtonPressed" {
-		r = RequestTypeButtonPressed
+	if str == "\"ButtonPressed\"" {
+		*r = RequestTypeButtonPressed
 		return nil
 	}
 
-	return fmt.Errorf("Unsupported RequestType value: %v", input)
+	return fmt.Errorf("Unsupported RequestType value: %v", str)
 }
 
 const (
@@ -81,42 +83,58 @@ const (
 // MarshalJSON converts inner representation to values supported by Alise API
 func (e EntityType) MarshalJSON() ([]byte, error) {
 	if e == EntityTypeDateTime {
-		return []byte("YANDEX.DATETIME"), nil
+		return []byte("\"YANDEX.DATETIME\""), nil
 	}
 	if e == EntityTypeFIO {
-		return []byte("YANDEX.FIO"), nil
+		return []byte("\"YANDEX.FIO\""), nil
 	}
 	if e == EntityTypeGeo {
-		return []byte("YANDEX.GEO"), nil
+		return []byte("\"YANDEX.GEO\""), nil
 	}
 	if e == EntityTypeNumber {
-		return []byte("YANDEX.NUMBER"), nil
+		return []byte("\"YANDEX.NUMBER\""), nil
 	}
 
 	return []byte{}, fmt.Errorf("Unsupported EntityType value: %v", e)
 }
 
 // UnmarshalJSON converts Alice API type of named entity into internal EntityType value
-func (e EntityType) UnmarshalJSON(input []byte) error {
+func (e *EntityType) UnmarshalJSON(input []byte) error {
 	str := string(input)
-	if str == "YANDEX.DATETIME" {
-		e = EntityTypeDateTime
+	if str == "\"YANDEX.DATETIME\"" {
+		*e = EntityTypeDateTime
 		return nil
 	}
-	if str == "YANDEX.FIO" {
-		e = EntityTypeFIO
+	if str == "\"YANDEX.FIO\"" {
+		*e = EntityTypeFIO
 		return nil
 	}
-	if str == "YANDEX.GEO" {
-		e = EntityTypeGeo
+	if str == "\"YANDEX.GEO\"" {
+		*e = EntityTypeGeo
 		return nil
 	}
-	if str == "YANDEX.NUMBER" {
-		e = EntityTypeNumber
+	if str == "\"YANDEX.NUMBER\"" {
+		*e = EntityTypeNumber
 		return nil
 	}
 
-	return fmt.Errorf("Unsupported EntityType value: %v", input)
+	return fmt.Errorf("Unsupported EntityType value: %v", str)
+}
+
+// ValueFIO - value type for entities YANDEX.FIO
+type ValueFIO struct {
+	FirstName      string `json:"first_name"`
+	PatronymicName string `json:"patronymic_name"`
+	LastName       string `json:"last_name"`
+}
+
+// ValueGeo - value type for entities YANDEX.GEO
+type ValueGeo struct {
+	Country     string `json:"country"`
+	City        string `json:"city"`
+	Street      string `json:"street"`
+	HouseNumber string `json:"house_number"`
+	Airport     string `json:"airport"`
 }
 
 // RequestEntity - machine representation of Alice requst named entity
@@ -127,6 +145,109 @@ type RequestEntity struct {
 	} `json:"tokens"`
 	Type  EntityType      `json:"type"`
 	Value json.RawMessage `json:"value"` // TODO !!!
+}
+
+// IsFIO - checks if RequestEntity is YANDEX.FIO
+func (e *RequestEntity) IsFIO() bool {
+	return e.Type == EntityTypeFIO
+}
+
+// IsGeo checks if RequestEntity is YANDEX.GEO
+func (e *RequestEntity) IsGeo() bool {
+	return e.Type == EntityTypeGeo
+}
+
+// IsFloat checks if RequestEntity is floating point YANDEX.NUMBER
+func (e *RequestEntity) IsFloat() bool {
+	return e.Type == EntityTypeNumber && isJSONNumberIsFloat(e.Value)
+}
+
+// IsInt checks if RequestEntity is integer YANDEX.NUMBER
+func (e *RequestEntity) IsInt() bool {
+	return e.Type == EntityTypeNumber && !isJSONNumberIsFloat(e.Value)
+}
+
+// IsDateTime checks if RequestEntity is YANDEX.DATETIME
+func (e *RequestEntity) IsDateTime() bool {
+	return e.Type == EntityTypeDateTime
+}
+
+// FIOValue returns ValueFIO if RequestEntity is YANDEX.FIO or error otherwhise
+func (e *RequestEntity) FIOValue() (ValueFIO, error) {
+	var v ValueFIO
+
+	if !e.IsFIO() {
+		return v, fmt.Errorf("Cannot create ValueFIO for entity type %v", e.Type)
+	}
+
+	if err := json.Unmarshal(e.Value, &v); err != nil {
+		return v, err
+	}
+
+	return v, nil
+}
+
+// GeoValue returns ValueGeo if RequestEntity is YANDEX.GEO or error otherwhise
+func (e *RequestEntity) GeoValue() (ValueGeo, error) {
+	var v ValueGeo
+
+	if !e.IsGeo() {
+		return v, fmt.Errorf("Cannot create ValueGeo for entity type %v", e.Type)
+	}
+
+	if err := json.Unmarshal(e.Value, &v); err != nil {
+		return v, err
+	}
+
+	return v, nil
+}
+
+// FloatValue returns float if RequestEntity is floating point YANDEX.NUMBER or error otherwhise
+func (e *RequestEntity) FloatValue() (float64, error) {
+	var v float64
+
+	if !e.IsFloat() {
+		var add string
+		if e.IsInt() {
+			add = ", integer"
+		}
+		return v, fmt.Errorf("Cannot create float for entity type %v%v", e.Type, add)
+	}
+
+	if err := json.Unmarshal(e.Value, &v); err != nil {
+		return v, err
+	}
+
+	return v, nil
+}
+
+// IntValue returns integer if RequestEntity is integer YANDEX.NUMBER or error otherwhise
+func (e *RequestEntity) IntValue() (int, error) {
+	var v int
+
+	if !e.IsInt() {
+		var add string
+		if e.IsFloat() {
+			add = ", float"
+		}
+		return v, fmt.Errorf("Cannot create integer for entity type %v%v", e.Type, add)
+	}
+
+	if err := json.Unmarshal(e.Value, &v); err != nil {
+		return v, err
+	}
+
+	return v, nil
+}
+
+// TODO: Parse Alice request properly!!!
+// DateTimeValue returns time.Time if RequestEntity is YANDEX.DATETIME or error otherwhise
+func (e *RequestEntity) DateTimeValue() (time.Time, error) {
+	if !e.IsDateTime() {
+		return time.Now(), fmt.Errorf("Cannot create time.Time for entity type %v", e.Type)
+	}
+
+	return time.Now(), nil
 }
 
 // RequestNLU - words and names entities of Alice request
@@ -142,6 +263,14 @@ type Request struct {
 	Type              RequestType     `json:"type"`
 	Markup            RequestMarkup   `json:"markup"`
 	Payload           json.RawMessage `json:"payload"`
+}
+
+// DecodePayload decodes current request payload into provied variable
+func (r *Request) DecodePayload(p interface{}) error {
+	if err := json.Unmarshal(r.Payload, p); err != nil {
+		return fmt.Errorf("Unable to decode request payload: %v", err)
+	}
+	return nil
 }
 
 // IsPing returns `true` if it is Yandex healthcheck
@@ -178,4 +307,8 @@ type OutputData struct {
 	Version  string   `json:"version"`
 	Session  Session  `json:"session"`
 	Response Response `json:"response"`
+}
+
+func isJSONNumberIsFloat(v json.RawMessage) bool {
+	return strings.Contains(string(v), ".")
 }
