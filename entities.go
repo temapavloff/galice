@@ -273,9 +273,14 @@ func (r *Request) DecodePayload(p interface{}) error {
 	return nil
 }
 
-// IsPing returns `true` if it is Yandex healthcheck
+// IsPing checks if it is Yandex healthcheck
 func (r *Request) IsPing() bool {
 	return r.OriginalUtterance == "ping"
+}
+
+// IsDangerousContext checks if it has dangerous context
+func (r *Request) IsDangerousContext() bool {
+	return r.Markup.DangerousContext
 }
 
 // InputData - incoming data from Alice API
@@ -307,6 +312,30 @@ type OutputData struct {
 	Version  string   `json:"version"`
 	Session  Session  `json:"session"`
 	Response Response `json:"response"`
+}
+
+// Pong creates pong response for ping request
+func Pong(i InputData) OutputData {
+	return OutputData{
+		Version: i.Version,
+		Session: i.Session,
+		Response: Response{
+			Text: "pong",
+			TTS:  "pong",
+		},
+	}
+}
+
+// Dangerous creates response for requests with dangerous context
+func Dangerous(i InputData) OutputData {
+	return OutputData{
+		Version: i.Version,
+		Session: i.Session,
+		Response: Response{
+			Text: "Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.",
+			TTS:  "Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.",
+		},
+	}
 }
 
 func isJSONNumberIsFloat(v json.RawMessage) bool {
