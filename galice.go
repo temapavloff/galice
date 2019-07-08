@@ -22,7 +22,7 @@ func New(autoPings bool, autoDanderousContext bool) *Client {
 		autoPings,
 		autoDanderousContext,
 		func(val error) {
-			fmt.Printf("An error accoured while handling Alice request: %v", val)
+			fmt.Printf("An error accured while handling Alice request: %v", val)
 		},
 	}
 }
