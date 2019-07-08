@@ -2,13 +2,18 @@ package galice
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
+
+// Logger - signature for logging function
+type Logger func(error)
 
 // Client - Alice API client
 type Client struct {
 	autoPings            bool
 	autoDanderousContext bool
+	logger               Logger
 }
 
 // New creates new instance of Alice API client
@@ -16,6 +21,9 @@ func New(autoPings bool, autoDanderousContext bool) *Client {
 	return &Client{
 		autoPings,
 		autoDanderousContext,
+		func(val error) {
+			fmt.Printf("An error accoured while handling Alice request: %v", val)
+		},
 	}
 }
 
@@ -26,21 +34,26 @@ type AliceHandler func(InputData) OutputData
 func (c *Client) CreateHandler(fn AliceHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			if err := recover(); err != nil {
-				panic(err) // TODO Handle it properly
+			if val := recover(); val != nil {
+				c.logger(fmt.Errorf("Unexpected error: %v", val))
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 		}()
 		decoder := json.NewDecoder(r.Body)
 		var ai InputData
 		err := decoder.Decode(&ai)
 		if err != nil {
-			panic(err) // TODO Handle it properly
+			c.logger(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 		if c.autoPings && ai.Request.IsPing() {
 			p := Pong(ai)
 			b, err := json.Marshal(p)
 			if err != nil {
-				panic(err) // TODO Handle it properly
+				c.logger(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
 			w.Write(b)
 			return
@@ -49,7 +62,9 @@ func (c *Client) CreateHandler(fn AliceHandler) http.Handler {
 			d := Dangerous(ai)
 			b, err := json.Marshal(d)
 			if err != nil {
-				panic(err) // TODO Handle it properly
+				c.logger(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
 			w.Write(b)
 			return
@@ -57,7 +72,9 @@ func (c *Client) CreateHandler(fn AliceHandler) http.Handler {
 		ao := fn(ai)
 		b, err := json.Marshal(ao)
 		if err != nil {
-			panic(err) // TODO Handle it properly
+			c.logger(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		w.Write(b)
 	})
