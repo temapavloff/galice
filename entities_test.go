@@ -3,6 +3,7 @@ package galice
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -253,4 +254,53 @@ func TestEntityValues(t *testing.T) {
 	require.NoError(t, err)
 	_, err = ie.GeoValue()
 	require.Error(t, err)
+}
+
+func TestValueDateTimeAbsolute(t *testing.T) {
+	strAbs := []byte(`{
+		"year": 1982,
+		"month": 9,
+		"day": 15,
+		"hour": 22,
+		"minute": 30
+	}`)
+	locAbs, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+	timeAbs := time.Date(1982, time.Month(9), 15, 22, 30, 0, 0, locAbs)
+	var vl ValueDateTime
+	err = json.Unmarshal(strAbs, &vl)
+	require.NoError(t, err)
+	require.False(t, vl.IsRelative())
+	tv, err := vl.Time("Europe/Moscow")
+	require.NoError(t, err)
+	require.True(t, tv.Equal(timeAbs))
+	_, err = vl.Time("NO_EXISTING_ZONE_ID")
+	require.Error(t, err)
+}
+
+func TestValueDateTimeRelative(t *testing.T) {
+	strRel := []byte(`{
+		"year": 3,
+		"year_is_relative": true,
+		"month": 2,
+		"month_is_relative": true,
+		"day": -8,
+		"day_is_relative": true,
+		"hour": -4,
+		"hour_is_relative": true,
+		"minute": -30,
+		"minute_is_relative": true
+	}`)
+	locRel, err := time.LoadLocation("Europe/Moscow")
+	require.NoError(t, err)
+	now := time.Now()
+	timeRel := time.Date(now.Year()+3, now.Month()+time.Month(2),
+		now.Day()-8, now.Hour()-4, now.Minute()-30, 0, 0, locRel)
+	var vl ValueDateTime
+	err = json.Unmarshal(strRel, &vl)
+	require.NoError(t, err)
+	require.True(t, vl.IsRelative())
+	tv, err := vl.Time("Europe/Moscow")
+	require.NoError(t, err)
+	require.True(t, tv.Equal(timeRel))
 }

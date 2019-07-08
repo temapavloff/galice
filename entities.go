@@ -137,6 +137,46 @@ type ValueGeo struct {
 	Airport     string `json:"airport"`
 }
 
+// ValueDateTime - value type for entities YANDEX.DATETIME
+type ValueDateTime struct {
+	Year             int  `json:"year"`
+	YearIsRelative   bool `json:"year_is_relative"`
+	Month            int  `json:"month"`
+	MonthIsRelative  bool `json:"month_is_relative"`
+	Day              int  `json:"day"`
+	DayIsRelative    bool `json:"day_is_relative"`
+	Hour             int  `json:"hour"`
+	HourIsRelative   bool `json:"hour_is_relative"`
+	Minute           int  `json:"minute"`
+	MinuteIsRelative bool `json:"minute_is_relative"`
+}
+
+// IsRelative checks if ValueDateTime is in relative format
+func (v *ValueDateTime) IsRelative() bool {
+	return v.YearIsRelative || v.MonthIsRelative || v.DayIsRelative || v.HourIsRelative || v.MinuteIsRelative
+}
+
+// Time returns go time.Time based on ValueDateTime
+func (v *ValueDateTime) Time(zoneID string) (time.Time, error) {
+	location, err := time.LoadLocation(zoneID)
+	if err != nil {
+		return time.Now(), err
+	}
+	if v.IsRelative() {
+		t := time.Now()
+		return time.Date(
+			t.Year()+v.Year,
+			t.Month()+time.Month(v.Month),
+			t.Day()+v.Day,
+			t.Hour()+v.Hour,
+			t.Minute()+v.Minute,
+			0, 0, location,
+		), nil
+	}
+
+	return time.Date(v.Year, time.Month(v.Month), v.Day, v.Hour, v.Minute, 0, 0, location), nil
+}
+
 // RequestEntity - machine representation of Alice requst named entity
 type RequestEntity struct {
 	Tokens struct {
@@ -240,14 +280,19 @@ func (e *RequestEntity) IntValue() (int, error) {
 	return v, nil
 }
 
-// TODO: Parse Alice request properly!!!
 // DateTimeValue returns time.Time if RequestEntity is YANDEX.DATETIME or error otherwhise
-func (e *RequestEntity) DateTimeValue() (time.Time, error) {
+func (e *RequestEntity) DateTimeValue() (ValueDateTime, error) {
+	var v ValueDateTime
+
 	if !e.IsDateTime() {
-		return time.Now(), fmt.Errorf("Cannot create time.Time for entity type %v", e.Type)
+		return v, fmt.Errorf("Cannot create time.Time for entity type %v", e.Type)
 	}
 
-	return time.Now(), nil
+	if err := json.Unmarshal(e.Value, &v); err != nil {
+		return v, err
+	}
+
+	return v, nil
 }
 
 // RequestNLU - words and names entities of Alice request
