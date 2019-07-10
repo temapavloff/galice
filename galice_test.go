@@ -41,8 +41,8 @@ func TestPing(t *testing.T) {
 	cli.SetLogger(func(err error) {
 		t.Error(err)
 	})
-	h := cli.CreateHandler(func(i InputData) OutputData {
-		return OutputData{}
+	h := cli.CreateHandler(func(i InputData) (OutputData, error) {
+		return OutputData{}, nil
 	})
 
 	req, err := http.NewRequest("POST", "/skill", bytes.NewReader([]byte(pinbBody)))

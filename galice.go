@@ -32,8 +32,18 @@ func New(autoPings bool, autoDanderousContext bool) *Client {
 	}
 }
 
+// AliceHandlerError - error representation which may occure while handling Alice request
+type AliceHandlerError struct {
+	Message      string
+	ResponseCode int
+}
+
+func (a *AliceHandlerError) Error() string {
+	return a.Message
+}
+
 // AliceHandler - signature of Alice request handler
-type AliceHandler func(InputData) OutputData
+type AliceHandler func(InputData) (OutputData, error)
 
 // CreateHandler - creates new handler function for HTTP server based on provided AliceHander
 func (c *Client) CreateHandler(fn AliceHandler) http.Handler {
@@ -45,54 +55,46 @@ func (c *Client) CreateHandler(fn AliceHandler) http.Handler {
 			}
 		}()
 
-		if r.Body == nil {
-			c.logger(fmt.Errorf("Empty request body"))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		defer r.Body.Close()
-
-		decoder := json.NewDecoder(r.Body)
-		var ai InputData
-		err := decoder.Decode(&ai)
-		if err != nil {
-			c.logger(fmt.Errorf("Error while decoding Alice request: %v", err))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		if c.autoPings && ai.Request.IsPing() {
-			p := Pong(ai)
-			b, err := json.Marshal(p)
-			if err != nil {
-				c.logger(fmt.Errorf("Error while marshaling ping response: %v", err))
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			w.Write(b)
-			return
-		}
-
-		if c.autoDanderousContext && ai.Request.IsDangerousContext() {
-			d := Dangerous(ai)
-			b, err := json.Marshal(d)
-			if err != nil {
-				c.logger(err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			w.Write(b)
-			return
-		}
-
-		ao := fn(ai)
-		b, err := json.Marshal(ao)
+		err := c.handleRequest(w, r, fn)
 		if err != nil {
 			c.logger(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			w.WriteHeader(err.ResponseCode)
 		}
-
-		w.Write(b)
 	})
+}
+
+func (c *Client) handleRequest(w http.ResponseWriter, r *http.Request, fn AliceHandler) *AliceHandlerError {
+	if r.Body == nil {
+		return &AliceHandlerError{"Empty request body", http.StatusBadRequest}
+	}
+	defer r.Body.Close()
+
+	decoder := json.NewDecoder(r.Body)
+	var i InputData
+	err := decoder.Decode(&i)
+	if err != nil {
+		return &AliceHandlerError{fmt.Sprintf("Error while decoding Alice request: %v", err), http.StatusBadRequest}
+	}
+
+	var o OutputData
+	switch {
+	case c.autoPings && i.Request.IsPing():
+		o = Pong(i)
+	case c.autoDanderousContext && i.Request.IsDangerousContext():
+		o = Dangerous(i)
+	default:
+		o, err = fn(i)
+		if err != nil {
+			c.logger(err)
+		}
+	}
+
+	b, err := json.Marshal(o)
+	if err != nil {
+		return &AliceHandlerError{fmt.Sprintf("Error marshaling response: %v", err), http.StatusInternalServerError}
+	}
+
+	w.Write(b)
+
+	return nil
 }
