@@ -51,4 +51,5 @@ func TestPing(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, pongBody, rr.Body.String())
+	require.Equal(t, "application/json", rr.Header().Get("Content-type"))
 }

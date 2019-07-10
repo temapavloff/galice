@@ -55,6 +55,7 @@ func (c *Client) CreateHandler(fn AliceHandler) http.Handler {
 			}
 		}()
 
+		w.Header().Set("Content-Type", "application/json")
 		err := c.handleRequest(w, r, fn)
 		if err != nil {
 			c.logger(err)
