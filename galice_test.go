@@ -119,7 +119,6 @@ func TestHandlingUnexpectedError(t *testing.T) {
 	})
 	h := cli.CreateHandler(func(i InputData) (OutputData, error) {
 		panic(errors.New("test"))
-		return OutputData{}, errors.New("test")
 	})
 	req, err := http.NewRequest("POST", "/skill", bytes.NewReader([]byte("{}")))
 	require.NoError(t, err)
