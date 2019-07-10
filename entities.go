@@ -183,33 +183,33 @@ type RequestEntity struct {
 		Start uint `json:"start"`
 		End   uint `json:"end"`
 	} `json:"tokens"`
-	Type  *EntityType     `json:"type"`
+	Type  EntityType      `json:"type"`
 	Value json.RawMessage `json:"value"` // TODO !!!
 }
 
 // IsFIO - checks if RequestEntity is YANDEX.FIO
 func (e *RequestEntity) IsFIO() bool {
-	return *e.Type == EntityTypeFIO
+	return e.Type == EntityTypeFIO
 }
 
 // IsGeo checks if RequestEntity is YANDEX.GEO
 func (e *RequestEntity) IsGeo() bool {
-	return *e.Type == EntityTypeGeo
+	return e.Type == EntityTypeGeo
 }
 
 // IsFloat checks if RequestEntity is floating point YANDEX.NUMBER
 func (e *RequestEntity) IsFloat() bool {
-	return *e.Type == EntityTypeNumber && isJSONNumberIsFloat(e.Value)
+	return e.Type == EntityTypeNumber && isJSONNumberIsFloat(e.Value)
 }
 
 // IsInt checks if RequestEntity is integer YANDEX.NUMBER
 func (e *RequestEntity) IsInt() bool {
-	return *e.Type == EntityTypeNumber && !isJSONNumberIsFloat(e.Value)
+	return e.Type == EntityTypeNumber && !isJSONNumberIsFloat(e.Value)
 }
 
 // IsDateTime checks if RequestEntity is YANDEX.DATETIME
 func (e *RequestEntity) IsDateTime() bool {
-	return *e.Type == EntityTypeDateTime
+	return e.Type == EntityTypeDateTime
 }
 
 // FIOValue returns ValueFIO if RequestEntity is YANDEX.FIO or error otherwhise
@@ -297,17 +297,18 @@ func (e *RequestEntity) DateTimeValue() (ValueDateTime, error) {
 
 // RequestNLU - words and names entities of Alice request
 type RequestNLU struct {
-	Tokens   []string         `json:"tokens"`
-	Entities []*RequestEntity `json:"entities"`
+	Tokens   []string        `json:"tokens"`
+	Entities []RequestEntity `json:"entities"`
 }
 
 // Request - Alise request
 type Request struct {
 	Command           string          `json:"command"`
 	OriginalUtterance string          `json:"original_utterance"`
-	Type              *RequestType    `json:"type"`
-	Markup            *RequestMarkup  `json:"markup"`
+	Type              RequestType     `json:"type"`
+	Markup            RequestMarkup   `json:"markup"`
 	Payload           json.RawMessage `json:"payload"`
+	NLU               RequestNLU      `json:"nlu"`
 }
 
 // DecodePayload decodes current request payload into provied variable
@@ -330,33 +331,64 @@ func (r *Request) IsDangerousContext() bool {
 
 // InputData - incoming data from Alice API
 type InputData struct {
-	Version string   `json:"version"`
-	Meta    *Meta    `json:"meta"`
-	Session *Session `json:"session"`
-	Request *Request `json:"request"`
+	Version string  `json:"version"`
+	Meta    Meta    `json:"meta"`
+	Session Session `json:"session"`
+	Request Request `json:"request"`
 }
 
 // ResponseButton - Alice API representation of Button for response
 type ResponseButton struct {
 	Title   string      `json:"title"`
-	Payload interface{} `json:"payload"`
-	URL     string      `json:"url"`
-	Hide    string      `json:"hide"`
+	Hide    bool        `json:"hide"`
+	URL     string      `json:"url,omitempty"`
+	Payload interface{} `json:"payload,omitempty"`
 }
 
 // Response - Alice response
 type Response struct {
-	Text       string          `json:"text"`
-	TTS        string          `json:"tts"`
-	Buttons    *ResponseButton `json:"buttons,omitempty"`
-	EndSession bool            `json:"end_session"`
+	Text       string           `json:"text"`
+	TTS        string           `json:"tts"`
+	Buttons    []ResponseButton `json:"buttons,omitempty"`
+	EndSession bool             `json:"end_session"`
+}
+
+// AddButton adds new button into response
+func (r *Response) AddButton(title string, hide bool, URL string, payload interface{}) {
+	if r.Buttons == nil {
+		r.Buttons = []ResponseButton{}
+	}
+
+	r.Buttons = append(r.Buttons, ResponseButton{title, hide, URL, payload})
+}
+
+// NewResponse creates new response instance
+func NewResponse(text, tts string, endSession bool) Response {
+	if tts == "" {
+		tts = text
+	}
+	return Response{
+		text,
+		tts,
+		nil,
+		endSession,
+	}
 }
 
 // OutputData - outcoming data for Alice API
 type OutputData struct {
-	Version  string    `json:"version"`
-	Session  *Session  `json:"session"`
-	Response *Response `json:"response"`
+	Version  string   `json:"version"`
+	Session  Session  `json:"session"`
+	Response Response `json:"response"`
+}
+
+// NewOutput creates new output instance
+func NewOutput(i InputData, r Response) OutputData {
+	return OutputData{
+		Version:  i.Version,
+		Session:  i.Session,
+		Response: r,
+	}
 }
 
 // Pong creates pong response for ping request
@@ -364,7 +396,7 @@ func Pong(i InputData) OutputData {
 	return OutputData{
 		Version: i.Version,
 		Session: i.Session,
-		Response: &Response{
+		Response: Response{
 			Text: "pong",
 			TTS:  "pong",
 		},
@@ -376,7 +408,7 @@ func Dangerous(i InputData) OutputData {
 	return OutputData{
 		Version: i.Version,
 		Session: i.Session,
-		Response: &Response{
+		Response: Response{
 			Text: "Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.",
 			TTS:  "Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.",
 		},

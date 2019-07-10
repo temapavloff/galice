@@ -90,7 +90,7 @@ func (c *Client) handleRequest(w http.ResponseWriter, r *http.Request, fn AliceH
 		}
 	}
 
-	b, err := json.Marshal(o)
+	b, err := json.Marshal(&o)
 	if err != nil {
 		return &AliceHandlerError{fmt.Sprintf("Error marshaling response: %v", err), http.StatusInternalServerError}
 	}
