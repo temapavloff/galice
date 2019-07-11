@@ -1,1 +1,1 @@
-# Golang SDK for Yandex Alice [![Go Report Card](https://goreportcard.com/badge/github.com/temapavloff/galice)](https://goreportcard.com/report/github.com/temapavloff/galice)
+# Golang SDK for Yandex Alice [![Build Status](https://travis-ci.com/temapavloff/galice.svg?branch=master)](https://travis-ci.com/temapavloff/galice) [![Go Report Card](https://goreportcard.com/badge/github.com/temapavloff/galice)](https://goreportcard.com/report/github.com/temapavloff/galice)
