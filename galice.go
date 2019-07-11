@@ -3,7 +3,9 @@ package galice
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 )
 
 // Logger - signature for logging function
@@ -16,6 +18,8 @@ type Client struct {
 	logger               Logger
 }
 
+var defaultLogger = log.New(os.Stderr, "", 0)
+
 // SetLogger sets logger function to current client
 func (c *Client) SetLogger(logger Logger) {
 	c.logger = logger
@@ -27,7 +31,7 @@ func New(autoPings bool, autoDanderousContext bool) *Client {
 		autoPings,
 		autoDanderousContext,
 		func(val error) {
-			fmt.Printf("An error accured while handling Alice request: %v", val)
+			defaultLogger.Println(val)
 		},
 	}
 }
@@ -70,10 +74,9 @@ func (c *Client) handleRequest(w http.ResponseWriter, r *http.Request, fn AliceH
 	}
 	defer r.Body.Close()
 
-	decoder := json.NewDecoder(r.Body)
+	var err error
 	var i InputData
-	err := decoder.Decode(&i)
-	if err != nil {
+	if err = json.NewDecoder(r.Body).Decode(&i); err != nil {
 		return &AliceHandlerError{fmt.Sprintf("Error while decoding Alice request: %v", err), http.StatusBadRequest}
 	}
 
@@ -90,12 +93,9 @@ func (c *Client) handleRequest(w http.ResponseWriter, r *http.Request, fn AliceH
 		}
 	}
 
-	b, err := json.Marshal(&o)
-	if err != nil {
+	if err = json.NewEncoder(w).Encode(o); err != nil {
 		return &AliceHandlerError{fmt.Sprintf("Error marshaling response: %v", err), http.StatusInternalServerError}
 	}
-
-	w.Write(b)
 
 	return nil
 }

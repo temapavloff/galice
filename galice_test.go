@@ -37,7 +37,8 @@ func TestPing(t *testing.T) {
 	},
 	"version": "1.0"
 }`
-	pongBody := `{"version":"1.0","session":{"new":true,"message_id":4,"session_id":"2eac4854-fce721f3-b845abba-20d60","skill_id":"3ad36498-f5rd-4079-a14b-788652932056","user_id":"AC9WC3DF6FCE052E45A4566A48E6B7193774B84814CE49A922E163B8B29881DC"},"response":{"text":"pong","tts":"pong","end_session":false}}`
+	pongBody := `{"version":"1.0","session":{"new":true,"message_id":4,"session_id":"2eac4854-fce721f3-b845abba-20d60","skill_id":"3ad36498-f5rd-4079-a14b-788652932056","user_id":"AC9WC3DF6FCE052E45A4566A48E6B7193774B84814CE49A922E163B8B29881DC"},"response":{"text":"pong","tts":"pong","end_session":false}}
+`
 	cli := New(true, true)
 	h := cli.CreateHandler(func(i InputData) (OutputData, error) {
 		return OutputData{}, nil
@@ -79,7 +80,8 @@ func TestDangerousContext(t *testing.T) {
 	},
 	"version": "1.0"
 }`
-	respBody := `{"version":"1.0","session":{"new":true,"message_id":4,"session_id":"2eac4854-fce721f3-b845abba-20d60","skill_id":"3ad36498-f5rd-4079-a14b-788652932056","user_id":"AC9WC3DF6FCE052E45A4566A48E6B7193774B84814CE49A922E163B8B29881DC"},"response":{"text":"Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.","tts":"Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.","end_session":false}}`
+	respBody := `{"version":"1.0","session":{"new":true,"message_id":4,"session_id":"2eac4854-fce721f3-b845abba-20d60","skill_id":"3ad36498-f5rd-4079-a14b-788652932056","user_id":"AC9WC3DF6FCE052E45A4566A48E6B7193774B84814CE49A922E163B8B29881DC"},"response":{"text":"Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.","tts":"Не понимаю, о чем вы. Пожалуйста, переформулируйте вопрос.","end_session":false}}
+`
 	cli := New(true, true)
 	h := cli.CreateHandler(func(i InputData) (OutputData, error) {
 		return OutputData{}, nil
@@ -155,7 +157,8 @@ func TestGeneralResponse(t *testing.T) {
 	},
 	"version": "1.0"
 }`
-	resp := `{"version":"1.0","session":{"new":true,"message_id":4,"session_id":"2eac4854-fce721f3-b845abba-20d60","skill_id":"3ad36498-f5rd-4079-a14b-788652932056","user_id":"AC9WC3DF6FCE052E45A4566A48E6B7193774B84814CE49A922E163B8B29881DC"},"response":{"text":"test","tts":"test","buttons":[{"title":"button 1","hide":true,"url":"https://ya.ru","payload":123},{"title":"button 2","hide":false}],"end_session":true}}`
+	resp := `{"version":"1.0","session":{"new":true,"message_id":4,"session_id":"2eac4854-fce721f3-b845abba-20d60","skill_id":"3ad36498-f5rd-4079-a14b-788652932056","user_id":"AC9WC3DF6FCE052E45A4566A48E6B7193774B84814CE49A922E163B8B29881DC"},"response":{"text":"test","tts":"test","buttons":[{"title":"button 1","hide":true,"url":"https://ya.ru","payload":123},{"title":"button 2","hide":false}],"end_session":true}}
+`
 	cli := New(true, true)
 	h := cli.CreateHandler(func(i InputData) (OutputData, error) {
 		r := NewResponse("test", "", true)
