@@ -8,24 +8,32 @@ import (
 	"os"
 )
 
-// Logger - signature for logging function
+// Logger is a signature for logging function used by Client
 type Logger func(error)
 
-// Client - Alice API client
+// Client represents Alice API client, allows to create HTTP handler function for Alice API incoming webhooks
 type Client struct {
-	autoPings            bool
-	autoDanderousContext bool
-	logger               Logger
+	autoPings            bool   // should Alice API healthcheks be handled automatically
+	autoDanderousContext bool   // should dangerous context be handled automatically
+	logger               Logger // logging function
 }
 
+// default logger for Client
 var defaultLogger = log.New(os.Stderr, "", 0)
 
-// SetLogger sets logger function to current client
+// SetLogger sets logger function to current client.
+// Logger used internally for logging any errors occured inside Alice request hanler:
+// bad requests, invalid responses, unexpected panics, etc.
+// If not called the default logger will be used.
+// The default logger writes int stderr.
 func (c *Client) SetLogger(logger Logger) {
 	c.logger = logger
 }
 
-// New creates new instance of Alice API client
+// New creates new Alice API client. The autoPings flag tells client to automatically
+// respond to Alice API healthchecks. The autoDanderousContext tells client to
+// automatically handle requests marked as dangerous (suicide, hate speech, threats)
+// by Alice API.
 func New(autoPings bool, autoDanderousContext bool) *Client {
 	return &Client{
 		autoPings,
@@ -36,20 +44,26 @@ func New(autoPings bool, autoDanderousContext bool) *Client {
 	}
 }
 
-// AliceHandlerError - error representation which may occure while handling Alice request
+// AliceHandlerError represents error which may occure while handling Alice request
 type AliceHandlerError struct {
-	Message      string
-	ResponseCode int
+	Message      string // Error message
+	ResponseCode int    // HTTP status code
 }
 
+// Error implements error interface
 func (a *AliceHandlerError) Error() string {
 	return a.Message
 }
 
-// AliceHandler - signature of Alice request handler
+// AliceHandler is a signature of Alice request handler. It represents function
+// which accepts InputData (go struct, contains Alice API incoming data) and must
+// return OutputData (go struct, contains Alice API outcoming data) and optional error
+//Notice that error is used only for additional logging, so function mus return correct
+// OutputData even if something went wrong
 type AliceHandler func(InputData) (OutputData, error)
 
-// CreateHandler - creates new handler function for HTTP server based on provided AliceHander
+// CreateHandler creates new http.Handler for Alice API incoming webhooks based on
+// provided AliceHandler
 func (c *Client) CreateHandler(fn AliceHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -83,9 +97,9 @@ func (c *Client) handleRequest(w http.ResponseWriter, r *http.Request, fn AliceH
 	var o OutputData
 	switch {
 	case c.autoPings && i.Request.IsPing():
-		o = Pong(i)
+		o = pong(i)
 	case c.autoDanderousContext && i.Request.IsDangerousContext():
-		o = Dangerous(i)
+		o = dangerous(i)
 	default:
 		o, err = fn(i)
 		if err != nil {

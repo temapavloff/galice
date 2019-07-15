@@ -7,27 +7,27 @@ import (
 	"time"
 )
 
-// Meta - Alise request metadata
+// Meta is an Alice API request metadata
 type Meta struct {
-	Locale     string      `json:"locale"`
-	Timezone   string      `json:"timezone"`
-	ClientID   string      `json:"client_id"`
-	Interfaces interface{} `json:"interfaces"`
+	Locale     string      `json:"locale"`     // request locale
+	Timezone   string      `json:"timezone"`   // request timezone
+	ClientID   string      `json:"client_id"`  // request user client ID
+	Interfaces interface{} `json:"interfaces"` // describes interfaces available on request user device
 }
 
-// Session - Alise session information
+// Session is an Alice API session information
 type Session struct {
-	New       bool   `json:"new"`
-	MessageID uint   `json:"message_id"`
-	SessionID string `json:"session_id"`
-	SkillID   string `json:"skill_id"`
-	UserID    string `json:"user_id"`
+	New       bool   `json:"new"`        // is it first request for current session or not
+	MessageID uint   `json:"message_id"` // ID of current request
+	SessionID string `json:"session_id"` // ID of current session
+	SkillID   string `json:"skill_id"`   // ID of current skill
+	UserID    string `json:"user_id"`    // ID of current user
 }
 
-// RequestType - type of Alice request: SimpleUtterance or ButtonPressed
+// RequestType represents type of Alice API request: SimpleUtterance or ButtonPressed
 type RequestType uint8
 
-// MarshalJSON converts inner representation to values supported by Alise API
+// MarshalJSON converts inner representation to values supported by Alice API
 func (r RequestType) MarshalJSON() ([]byte, error) {
 	if r == RequestTypeSimpleUtterance {
 		return []byte("\"SimpleUtterance\""), nil
@@ -61,12 +61,14 @@ const (
 	RequestTypeButtonPressed
 )
 
-// RequestMarkup - Alice request markup metadatas
+// RequestMarkup is Alice API request markup metadatas
 type RequestMarkup struct {
+	// true if current request message marked as dandegous (suicide, hate speech, threats) by Alice API
 	DangerousContext bool `json:"dangerous_context"`
 }
 
-// EntityType - type of ALice requst named entity: YANDEX.DATETIME, YANDEX.FIO, YANDEX.GEO, YANDEX.NUMBER
+// EntityType is a type of ALice API request named entity:
+// YANDEX.DATETIME, YANDEX.FIO, YANDEX.GEO, YANDEX.NUMBER
 type EntityType uint8
 
 const (
@@ -80,7 +82,7 @@ const (
 	EntityTypeNumber
 )
 
-// MarshalJSON converts inner representation to values supported by Alise API
+// MarshalJSON converts inner representation to values supported by Alice API
 func (e EntityType) MarshalJSON() ([]byte, error) {
 	if e == EntityTypeDateTime {
 		return []byte("\"YANDEX.DATETIME\""), nil
@@ -121,14 +123,16 @@ func (e *EntityType) UnmarshalJSON(input []byte) error {
 	return fmt.Errorf("Unsupported EntityType value: %v", str)
 }
 
-// ValueFIO - value type for entities YANDEX.FIO
+// ValueFIO is a value type for entities contains information of
+// person firs, last, and patronymic  names
 type ValueFIO struct {
 	FirstName      string `json:"first_name"`
 	PatronymicName string `json:"patronymic_name"`
 	LastName       string `json:"last_name"`
 }
 
-// ValueGeo - value type for entities YANDEX.GEO
+// ValueGeo is a value type for entities contains information of
+// some geografic object
 type ValueGeo struct {
 	Country     string `json:"country"`
 	City        string `json:"city"`
@@ -137,7 +141,8 @@ type ValueGeo struct {
 	Airport     string `json:"airport"`
 }
 
-// ValueDateTime - value type for entities YANDEX.DATETIME
+// ValueDateTime is a value type for entities contains informtaion of
+// relative or absolute data and time
 type ValueDateTime struct {
 	Year             int  `json:"year"`
 	YearIsRelative   bool `json:"year_is_relative"`
@@ -151,7 +156,7 @@ type ValueDateTime struct {
 	MinuteIsRelative bool `json:"minute_is_relative"`
 }
 
-// IsRelative checks if ValueDateTime is in relative format
+// IsRelative return trus if ValueDateTime is in relative format, false otherwise
 func (v *ValueDateTime) IsRelative() bool {
 	return v.YearIsRelative || v.MonthIsRelative || v.DayIsRelative || v.HourIsRelative || v.MinuteIsRelative
 }
@@ -177,17 +182,17 @@ func (v *ValueDateTime) Time(zoneID string) (time.Time, error) {
 	return time.Date(v.Year, time.Month(v.Month), v.Day, v.Hour, v.Minute, 0, 0, location), nil
 }
 
-// RequestEntity - machine representation of Alice requst named entity
+// RequestEntity is a representation of Alice API request named entity
 type RequestEntity struct {
 	Tokens struct {
 		Start uint `json:"start"`
 		End   uint `json:"end"`
 	} `json:"tokens"`
 	Type  EntityType      `json:"type"`
-	Value json.RawMessage `json:"value"` // TODO !!!
+	Value json.RawMessage `json:"value"`
 }
 
-// IsFIO - checks if RequestEntity is YANDEX.FIO
+// IsFIO checks if RequestEntity is YANDEX.FIO
 func (e *RequestEntity) IsFIO() bool {
 	return e.Type == EntityTypeFIO
 }
@@ -295,20 +300,27 @@ func (e *RequestEntity) DateTimeValue() (ValueDateTime, error) {
 	return v, nil
 }
 
-// RequestNLU - words and names entities of Alice request
+// RequestNLU is a struct contains words and names entities of Alice API request
 type RequestNLU struct {
 	Tokens   []string        `json:"tokens"`
 	Entities []RequestEntity `json:"entities"`
 }
 
-// Request - Alise request
+// Request is an Alice request
 type Request struct {
-	Command           string          `json:"command"`
-	OriginalUtterance string          `json:"original_utterance"`
-	Type              RequestType     `json:"type"`
-	Markup            RequestMarkup   `json:"markup"`
-	Payload           json.RawMessage `json:"payload"`
-	NLU               RequestNLU      `json:"nlu"`
+	// User request converted for internal processing of Alice.
+	// The text is cleared of punctuation marks, and the numerals are converted to numbers.
+	Command string `json:"command"`
+	// The full text of the user request, a maximum of 1024 characters.
+	OriginalUtterance string `json:"original_utterance"`
+	// The type of input, required field. May be RequestTypeSimpleUtterance or RequestTypeButtonPressed
+	Type RequestType `json:"type"`
+	// Replica Formal Characteristics
+	Markup RequestMarkup `json:"markup"`
+	// JSON, received with the button pressed from the skill handler (in response to the previous request)
+	Payload json.RawMessage `json:"payload"`
+	// Words and named entities retrieved from user request
+	NLU RequestNLU `json:"nlu"`
 }
 
 // DecodePayload decodes current request payload into provied variable
@@ -319,17 +331,17 @@ func (r *Request) DecodePayload(p interface{}) error {
 	return nil
 }
 
-// IsPing checks if it is Yandex healthcheck
+// IsPing checks if current request is Yandex healthcheck
 func (r *Request) IsPing() bool {
 	return r.OriginalUtterance == "ping"
 }
 
-// IsDangerousContext checks if it has dangerous context
+// IsDangerousContext checks if current request has dangerous context
 func (r *Request) IsDangerousContext() bool {
 	return r.Markup.DangerousContext
 }
 
-// InputData - incoming data from Alice API
+// InputData is an incoming data from Alice API
 type InputData struct {
 	Version string  `json:"version"`
 	Meta    Meta    `json:"meta"`
@@ -337,7 +349,7 @@ type InputData struct {
 	Request Request `json:"request"`
 }
 
-// ResponseButton - Alice API representation of Button for response
+// ResponseButton is an Alice API representation of Button for response
 type ResponseButton struct {
 	Title   string      `json:"title"`
 	Hide    bool        `json:"hide"`
@@ -345,7 +357,7 @@ type ResponseButton struct {
 	Payload interface{} `json:"payload,omitempty"`
 }
 
-// Response - Alice response
+// Response is an Alice response
 type Response struct {
 	Text       string           `json:"text"`
 	TTS        string           `json:"tts"`
@@ -353,7 +365,7 @@ type Response struct {
 	EndSession bool             `json:"end_session"`
 }
 
-// AddButton adds new button into response
+// AddButton adds new button into current response
 func (r *Response) AddButton(title string, hide bool, URL string, payload interface{}) {
 	if r.Buttons == nil {
 		r.Buttons = []ResponseButton{}
@@ -362,7 +374,9 @@ func (r *Response) AddButton(title string, hide bool, URL string, payload interf
 	r.Buttons = append(r.Buttons, ResponseButton{title, hide, URL, payload})
 }
 
-// NewResponse creates new response instance
+// NewResponse creates new response. Use text variable to set response text message.
+// Use tts variable to specify text to speach markup, if empty text value will be used.
+// Use endSession flag to specify that current message is the last one in current session.
 func NewResponse(text, tts string, endSession bool) Response {
 	if tts == "" {
 		tts = text
@@ -375,14 +389,15 @@ func NewResponse(text, tts string, endSession bool) Response {
 	}
 }
 
-// OutputData - outcoming data for Alice API
+// OutputData is an outcoming data for Alice API
 type OutputData struct {
 	Version  string   `json:"version"`
 	Session  Session  `json:"session"`
 	Response Response `json:"response"`
 }
 
-// NewOutput creates new output instance
+// NewOutput creates new OutputData. Use i variable to provide InputDate to setup
+// Alice API version and session data from it. Use r variable to set response
 func NewOutput(i InputData, r Response) OutputData {
 	return OutputData{
 		Version:  i.Version,
@@ -391,8 +406,7 @@ func NewOutput(i InputData, r Response) OutputData {
 	}
 }
 
-// Pong creates pong response for ping request
-func Pong(i InputData) OutputData {
+func pong(i InputData) OutputData {
 	return OutputData{
 		Version: i.Version,
 		Session: i.Session,
@@ -403,8 +417,7 @@ func Pong(i InputData) OutputData {
 	}
 }
 
-// Dangerous creates response for requests with dangerous context
-func Dangerous(i InputData) OutputData {
+func dangerous(i InputData) OutputData {
 	return OutputData{
 		Version: i.Version,
 		Session: i.Session,
