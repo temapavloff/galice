@@ -46,7 +46,7 @@ http.Handle("/skill", h)
 log.Fatal(http.ListenAndServe(":8080", nil))
 ```
 
-Addeding buttons to reqsponse:
+Adding buttons to response:
 
 ```golang
 h := cli.CreateHandler(func(i InputData) (OutputData, error) {
