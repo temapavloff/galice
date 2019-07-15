@@ -10,7 +10,7 @@ For more details on Alice API see [official documentation](https://yandex.ru/dev
 
 ## Installation
 
-`go get -u github.com/go-pkgz/auth`
+`go get -u github.com/temapavloff/galice`
 
 ## Usage
 
